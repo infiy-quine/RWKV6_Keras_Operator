@@ -1,7 +1,8 @@
 
 ## 基本介绍：
 &nbsp;&nbsp;&nbsp;&nbsp;这是一个适用于bert4keras3库中RWKV6模块的rwkv核算子。这个算子在jax、pytorch框架提供了原生CUDA实现，但对于TensorFlow框架只提供基本的上层api实现。
-
+## 安装
+`在虚拟环境内执行 pip install rwkv6-keras-operator 安装算子，并阅读对应的注意事项。`
 ## pytorch使用注意事项:
 - 安装依赖项 keras ninja 完整的cuda工具包
 - 如果您使用vs code搭配虚拟环境进行调试，请确保终端在运行代码之前已经进入到了虚拟环境之中（而非依赖于vs code自动进入），以防ninja无法正常工作。
@@ -19,8 +20,8 @@
   ```
 - 此外请确保`nvcc -V`可以正确输出，并且`which nvcc`指向了正确的cuda版本。
 
-## tf使用注意事项：
-- tf只实现了基于原生API的RWKV6算子，这个算子只能用于模型的推理并且效率比较低。
+## tensorflow使用注意事项：
+- tensorflow只实现了基于原生API的RWKV6算子，这个算子只能用于模型的推理并且效率比较低。
 
 ## 使用方法：
 ### 配置环境变量
@@ -41,7 +42,7 @@
   os.environ['KERAS_BACKEND'] = 'tensorflow'
   ```
 ### 方法定义
-- 使用`keras_rwkv6_kernel import RWKVKernelOperator`导入算子，这个算子需要两个超参数`head_size`和`max_sequence_length`,和一个可选参数`ops_loop`。
+- 使用`keras_rwkv6_operator import RWKVKernelOperator`导入算子，这个算子需要两个固定参数`head_size`和`max_sequence_length`,和一个可选参数`ops_loop`。
   - `head_size`为rwkv6的头大小，如果不清楚模型的头大小可以直接填64（在大部分情况下都是正确的）。
   - `max_sequence_length`为训练过程中的序列的最大长度，推理过程中的序列长度不受这个参数的限制。
   - 上面的参数均为必填项，并且会被以常量的形式编译到算子中。
@@ -50,7 +51,8 @@
   operator = RWKVKernelOperator(head_size=64,max_sequence_length=4096, ops_loop=False)
   ```
 
-- def __call__(self, r, k, v, w, u, with_state=False, init_state=None, state_map=None) -> tensor, Union[tensor, None]:
+- operator对象是callable的，通过operator(xxxx)调用算子。  
+  def __call__(self, r, k, v, w, u, with_state=False, init_state=None, state_map=None) -> tensor, Union[tensor, None]:
   - `r`, `k`, `v`, `w` 的形状均为（batch_size, seq_len，hidden_size）  
   #batch_size=批次大小，seq_len=序列长度，hidden_size=隐藏层维度
   - `w`为重参数化前的输入，即`exp(-exp(w))`在已经由算子内部完成，不需要自己完成。
@@ -64,9 +66,10 @@
 - 返回值由两个组成计算结果`y`，输出状态`y_state`，`with_state`值为False时，`y_state`为None。
   - `y`的形状为(batch_size, seq_len, hidden_size)
   - `y_state`的形状为(batch_size, num_heads, head_size, head_size) [或为None]
-
+## 环境变量
+- `OPS_KERNEL`默认为0，可以为0或1。如果这个环境变量的值为1强制使用基于上层API的算子代替基于底层实现的CUDA算子。这个环境变量必须在导入工具包之前设置，才能生效。
 ## 小贴士：
-- 算子本身没有实现分布式支持，pytorch如果使用基于deepspeed的分布式，应该不成问题；但是jax如果使用sharded tensor实现分布式则需要通过shard_map进行包装（例子如下）。
+- 算子本身没有实现分布式支持，pytorch基于多线程的分布式可以直接适配使用，但是如果是基于sharded tensor的jax实现分布式则需要通过shard_map对算子进行包装（例子如下）。
   ```python
   import math
   import os
@@ -75,7 +78,7 @@
   from jax.experimental.shard_map import shard_map
   from jax.experimental.mesh_utils import create_device_mesh
   from jax.sharding import PartitionSpec as P
-  from keras_rwkv6_kernel import RWKVKernelOperator
+  from keras_rwkv6_operator import RWKVKernelOperator
   from jax.sharding import Mesh, NamedSharding
   from functools import partial
   import jax.numpy as jnp
