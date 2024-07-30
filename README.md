@@ -42,7 +42,7 @@
   os.environ['KERAS_BACKEND'] = 'tensorflow'
   ```
 ### 方法定义
-- 使用`keras_rwkv6_operator import RWKVKernelOperator`导入算子，这个算子需要两个固定参数`head_size`和`max_sequence_length`,和一个可选参数`ops_loop`。
+- 使用`rwkv6_keras_operator import RWKVKernelOperator`导入算子，这个算子需要两个固定参数`head_size`和`max_sequence_length`,和一个可选参数`ops_loop`。
   - `head_size`为rwkv6的头大小，如果不清楚模型的头大小可以直接填64（在大部分情况下都是正确的）。
   - `max_sequence_length`为训练过程中的序列的最大长度，推理过程中的序列长度不受这个参数的限制。
   - 上面的参数均为必填项，并且会被以常量的形式编译到算子中。
@@ -78,7 +78,7 @@
   from jax.experimental.shard_map import shard_map
   from jax.experimental.mesh_utils import create_device_mesh
   from jax.sharding import PartitionSpec as P
-  from keras_rwkv6_operator import RWKVKernelOperator
+  from rwkv6_keras_operator import RWKVKernelOperator
   from jax.sharding import Mesh, NamedSharding
   from functools import partial
   import jax.numpy as jnp
