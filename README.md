@@ -19,7 +19,7 @@
   lrwxrwxrwx 1 root root 21 Jun 16 09:37 /usr/local/cuda -> /usr/local/cuda-12.4/
   ```
 - 此外请确保`nvcc -V`可以正确输出，并且`which nvcc`指向了正确的cuda版本。
-- - 因为Jax的限制，无法在单一程序内实例化多个RWKVKernelOperator对象，请确保在同一个程序中只实例化一个rwkv6算子。但是算子是线程安全的（无状态的），可以放心的在不同位置调用。
+- 因为Jax的限制，无法在单一程序内实例化多个RWKVKernelOperator对象，请确保在同一个程序中只实例化一个rwkv6算子。但是算子是线程安全的（无状态的），可以放心的在不同位置调用。
 
 ## tensorflow使用注意事项：
 - tensorflow只实现了基于原生API的RWKV6算子，这个算子只能用于模型的推理并且效率比较低。

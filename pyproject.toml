@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rwkv6-keras-operator"
 
-version = "1.0.4"
+version = "1.0.5"
 authors = [
     { name = "soyamilk", email = "soyamilk1997@163.com" },
 	{ name = "pass-lin", email = "qw_lin@qq.com" },
