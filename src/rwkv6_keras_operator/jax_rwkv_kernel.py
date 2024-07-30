@@ -513,7 +513,7 @@ class RWKVKernelOperator:
                 p.wait()
             print('-------------------build kernel finished -------------------')
         
-        kernel_module_path = f"rwkv_kernel.{kernel_dir_name}.builds.{target_dir_name}.{kernel_name}"
+        kernel_module_path = f"rwkv6_keras_operator.{kernel_dir_name}.builds.{target_dir_name}.{kernel_name}"
         print('loading cuda kernel from the path:',kernel_module_path)
         rwkv_op = importlib.import_module(kernel_module_path)
         return rwkv_op

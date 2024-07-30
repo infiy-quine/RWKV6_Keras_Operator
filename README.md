@@ -7,7 +7,7 @@
 - 安装依赖项 keras ninja 完整的cuda工具包
 - 如果您使用vs code搭配虚拟环境进行调试，请确保终端在运行代码之前已经进入到了虚拟环境之中（而非依赖于vs code自动进入），以防ninja无法正常工作。
 - 虽然Pytorch遇到"虚拟环境中的CUDA版本"与"全局CUDA环境版本"不一致时，rwkv6算子仍能正常工作，但是仍强烈建议将两环境的版本保持一致。
-
+- 因为Pytorch的限制，无法在单一程序内实例化多个RWKVKernelOperator对象，因此请确保在同一个程序中只实例化一个rwkv6算子。但是算子是线程安全的（无状态的），可以放心的在不同位置调用。
 
 ## jax使用注意事项:
 - 安装依赖项 keras gcc pybind11 完整的cuda工具包
@@ -19,6 +19,7 @@
   lrwxrwxrwx 1 root root 21 Jun 16 09:37 /usr/local/cuda -> /usr/local/cuda-12.4/
   ```
 - 此外请确保`nvcc -V`可以正确输出，并且`which nvcc`指向了正确的cuda版本。
+- - 因为Jax的限制，无法在单一程序内实例化多个RWKVKernelOperator对象，请确保在同一个程序中只实例化一个rwkv6算子。但是算子是线程安全的（无状态的），可以放心的在不同位置调用。
 
 ## tensorflow使用注意事项：
 - tensorflow只实现了基于原生API的RWKV6算子，这个算子只能用于模型的推理并且效率比较低。
