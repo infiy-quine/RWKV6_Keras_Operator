@@ -488,7 +488,7 @@ class RWKVKernelOperator:
             cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
             kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
                 f" -munsafe-fp-atomics -enable-vectorize-compares" +\
-                f" -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                f" -I{cuda_lib_dir} -I{pybind11.get_include()}" +\
                 f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
                 f" --gpu-max-threads-per-block=120" +\
                 f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
