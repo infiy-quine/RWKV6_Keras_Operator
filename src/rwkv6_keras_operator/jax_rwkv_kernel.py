@@ -20,8 +20,8 @@ from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jaxlib.hlo_helpers import custom_call
 
 
-USE_ROCM = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
-if USE_ROCM:
+use_rocm = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
+if use_rocm:
     kernel_dir_name = "jax_kernel_hip"
     cuda_lib_dir = "/opt/rocm/include"
     kernel_name = "gpu_ops"
@@ -484,7 +484,7 @@ class RWKVKernelOperator:
         build_cmds = []
         
         #first, build cuda kernel
-        if USE_ROCM:
+        if use_rocm:
             cu_src = os.path.join(kernel_dir,"rwkv_kernels.hip")
             assert os.path.exists(cu_src)
             cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
@@ -510,7 +510,7 @@ class RWKVKernelOperator:
             cpp_src = os.path.join(kernel_dir,"gpu_ops.cpp")
             cpp_dst = os.path.join(builds_dir,"gpu_ops.cpp.o")
             if not os.path.exists(cpp_dst):
-                if USE_ROCM:
+                if use_rocm:
                     cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
                         f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
                         f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
@@ -522,7 +522,7 @@ class RWKVKernelOperator:
                 build_cmds.append(cpp_cmd)
 
             #third assembly C++ and cuda
-            if USE_ROCM:
+            if use_rocm:
                 assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
                     f" -fPIC -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
                     f" -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
