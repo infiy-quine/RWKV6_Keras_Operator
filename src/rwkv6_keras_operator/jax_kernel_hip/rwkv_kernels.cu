@@ -18,7 +18,7 @@ limitations under the License.
 #include "kernel_helpers.h"
 #include "kernels.h"
 #include "stdio.h"
-#include <hip/hip_bf16.h>
+#include <cuda_bf16.h>
 #include <hip/hip_fp16.h>
 #include <iostream>
 #include <assert.h>
