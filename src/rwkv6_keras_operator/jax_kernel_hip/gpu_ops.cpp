@@ -19,11 +19,11 @@ limitations under the License.
 namespace {
 pybind11::dict WKVRegistrations() {
   pybind11::dict dict;
-  dict["rwkv_forward"] =
+  dict["wkv_forward"] =
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_forward_fn);
-  dict["rwkv_backward"] =
+  dict["wkv_backward"] =
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_backward_fn);
-  dict["rwkv_forward_with_state"] = 
+  dict["wkv_forward_with_state"] = 
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_forward_with_state_fn);
   return dict;
 }
