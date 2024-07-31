@@ -25,10 +25,12 @@ if USE_ROCM:
     kernel_dir_name = "jax_kernel_hip"
     cuda_lib_dir = "/opt/rocm/include"
     kernel_name = "gpu_ops"
+    platform = "ROCM"
 else:
     kernel_dir_name = "jax_kernel"
     cuda_lib_dir = "/usr/local/cuda/include"
     kernel_name = "gpu_ops"
+    platform = "gpu"
 
 def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
@@ -46,7 +48,7 @@ class RWKVKernelOperator:
         """
         for _name, _value in rwkv_kernel.get_rwkv_registrations().items():
             print("register_custom_call_target", _name, _value)
-            xla_client.register_custom_call_target(_name, _value, platform="gpu")
+            xla_client.register_custom_call_target(_name, _value, platform=platform)
 
 
         """
