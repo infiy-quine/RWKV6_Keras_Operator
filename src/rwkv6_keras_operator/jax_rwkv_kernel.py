@@ -495,6 +495,7 @@ class RWKVKernelOperator:
                 f" --generate-code=arch=compute_70,code=[compute_70,sm_70] --generate-code=arch=compute_75,code=[compute_75,sm_75] --generate-code=arch=compute_80,code=[compute_80,sm_80] --generate-code=arch=compute_86,code=[compute_86,sm_86]"+\
                 f" -Xcompiler=-fPIC -Xcompiler=-fvisibility=hidden -x cu -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
         build_cmds.append(kernel_cmd)
+        print("[kernel_cmd]", kernel_cmd, end="\n\n")
 
         
         so_dst = os.path.join(target_dir,f"{kernel_name}{get_suffix()}")
@@ -507,6 +508,7 @@ class RWKVKernelOperator:
                     f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
                     f" -o {cpp_dst} -c {cpp_src}"
                 build_cmds.append(cpp_cmd)
+                print("[cpp_cmd]", cpp_cmd, end="\n\n")
 
             # rocm: c++ wkv6_hip.cuda.o wkv6_op.o -shared \
             # -L/home/yuchuxi/.local/lib/python3.10/site-packages/torch/lib \
@@ -517,10 +519,12 @@ class RWKVKernelOperator:
             assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
                 f" -L/usr/local/cuda/lib64  -lcudadevrt -lcudart_static -lrt -lpthread -ldl"
             build_cmds.append(assembly_cmd)
+            print("[assembly_cmd]", assembly_cmd, end="\n\n")
 
             #finally strip the so library
             strip_cmd = f"strip {so_dst}"
             build_cmds.append(strip_cmd)
+            print("[strip_cmd]", strip_cmd, end="\n\n")
             
             print('-------------------starting build kernel -------------------')
             for cmd in build_cmds:
