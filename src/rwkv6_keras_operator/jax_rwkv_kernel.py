@@ -448,13 +448,14 @@ class RWKVKernelOperator:
             return self.rwkv_normal_operator(r, k, v, w, u),None
     @staticmethod
     def _load_or_build_kernel(head_size,max_sequence_length):
+        USE_ROCM = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
         assert head_size % 4 ==0,f"head size必须是4的倍数，而{head_size}显然不是."
         assert isinstance(head_size, int),"你是在搞笑吗？ head_size肯定得是int类型的啊"
         assert isinstance(max_sequence_length, int),"你是在搞笑吗？ max_sequence_length肯定得是int类型的啊"
         assert head_size >0 and max_sequence_length >0,"难绷，head_size与max_sequence_length肯定得是大于0的正整数啊。"
         assert os.path.exists(cuda_lib_dir) and len( os.listdir(cuda_lib_dir))>0,f"请检查{cuda_lib_dir}文件夹是否存在，这个文件本质是是您的cuda library的超链接。"
         kernel_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),kernel_dir_name))
-        if "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1":
+        if USE_ROCM:
             kernel_dir += "_hip"
         builds_dir = os.path.join(kernel_dir,'builds')
         assert os.path.exists(kernel_dir),f"找不到{kernel_dir_name}文件夹，请问您的文件是完整的吗？"
@@ -478,7 +479,7 @@ class RWKVKernelOperator:
         build_cmds = []
         
         #first, build cuda kernel
-        if "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1":
+        if USE_ROCM:
             cu_src = os.path.join(kernel_dir,"rwkv_kernels.hip")
             assert os.path.exists(cu_src)
             cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
@@ -504,9 +505,15 @@ class RWKVKernelOperator:
             cpp_src = os.path.join(kernel_dir,"gpu_ops.cpp")
             cpp_dst = os.path.join(builds_dir,"gpu_ops.cpp.o")
             if not os.path.exists(cpp_dst):
-                cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
-                    f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
-                    f" -o {cpp_dst} -c {cpp_src}"
+                if USE_ROCM:
+                    cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                        f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
+                        f" -isystem /opt/rocm/include" +\
+                        f" -o {cpp_dst} -c {cpp_src}"
+                else:
+                    cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                        f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
+                        f" -o {cpp_dst} -c {cpp_src}"
                 build_cmds.append(cpp_cmd)
                 print("[cpp_cmd]", cpp_cmd, end="\n\n")
 
@@ -516,8 +523,12 @@ class RWKVKernelOperator:
             # -L/opt/rocm/lib -lamdhip64 -o wkv6.so
 
             #third assembly C++ and cuda
-            assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
-                f" -L/usr/local/cuda/lib64  -lcudadevrt -lcudart_static -lrt -lpthread -ldl"
+            if USE_ROCM:
+                assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
+                    f" -L/opt/rocm/lib  -lamdhip64 -lpthread -ldl"
+            else:
+                assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
+                    f" -L/usr/local/cuda/lib64  -lcudadevrt -lcudart_static -lrt -lpthread -ldl"
             build_cmds.append(assembly_cmd)
             print("[assembly_cmd]", assembly_cmd, end="\n\n")
 
