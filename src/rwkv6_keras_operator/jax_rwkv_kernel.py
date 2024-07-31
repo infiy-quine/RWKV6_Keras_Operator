@@ -480,7 +480,7 @@ class RWKVKernelOperator:
         assert os.path.exists(cu_src)
         cu_dst = os.path.join(target_dir,"rwkv_kernels.cu.o")
         if "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1":
-            kernel_cmd = f"llvm -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
+            kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
                 f" -munsafe-fp-atomics -enable-vectorize-compares" +\
                 f" --gpu-max-threads-per-block=120" +\
                 f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
@@ -501,6 +501,11 @@ class RWKVKernelOperator:
                     f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
                     f" -o {cpp_dst} -c {cpp_src}"
                 build_cmds.append(cpp_cmd)
+
+            # rocm: c++ wkv6_hip.cuda.o wkv6_op.o -shared \
+            # -L/home/yuchuxi/.local/lib/python3.10/site-packages/torch/lib \
+            # -lc10 -lc10_hip -ltorch_cpu -ltorch_hip -ltorch -ltorch_python \
+            # -L/opt/rocm/lib -lamdhip64 -o wkv6.so
 
             #third assembly C++ and cuda
             assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
