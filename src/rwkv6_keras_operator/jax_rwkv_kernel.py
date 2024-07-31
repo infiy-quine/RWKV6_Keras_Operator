@@ -479,9 +479,15 @@ class RWKVKernelOperator:
         cu_src = os.path.join(kernel_dir,"rwkv_kernels.cu")
         assert os.path.exists(cu_src)
         cu_dst = os.path.join(target_dir,"rwkv_kernels.cu.o")
-        kernel_cmd = f"nvcc --threads 4 -Xcompiler -Wall -ldl --expt-relaxed-constexpr -O3 -DNDEBUG -Xcompiler -O3"+\
-            f" --generate-code=arch=compute_70,code=[compute_70,sm_70] --generate-code=arch=compute_75,code=[compute_75,sm_75] --generate-code=arch=compute_80,code=[compute_80,sm_80] --generate-code=arch=compute_86,code=[compute_86,sm_86]"+\
-            f" -Xcompiler=-fPIC -Xcompiler=-fvisibility=hidden -x cu -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
+        if "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1":
+            kernel_cmd = f"llvm -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
+                f" -munsafe-fp-atomics -enable-vectorize-compares" +\
+                f" --gpu-max-threads-per-block=120" +\
+                f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
+        else:
+            kernel_cmd = f"nvcc --threads 4 -Xcompiler -Wall -ldl --expt-relaxed-constexpr -O3 -DNDEBUG -Xcompiler -O3"+\
+                f" --generate-code=arch=compute_70,code=[compute_70,sm_70] --generate-code=arch=compute_75,code=[compute_75,sm_75] --generate-code=arch=compute_80,code=[compute_80,sm_80] --generate-code=arch=compute_86,code=[compute_86,sm_86]"+\
+                f" -Xcompiler=-fPIC -Xcompiler=-fvisibility=hidden -x cu -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
         build_cmds.append(kernel_cmd)
 
         
