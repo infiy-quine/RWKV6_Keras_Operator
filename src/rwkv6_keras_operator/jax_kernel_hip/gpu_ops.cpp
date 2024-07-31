@@ -23,7 +23,7 @@ pybind11::dict WKVRegistrations() {
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_forward_fn);
   dict["rwkv_backward"] =
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_backward_fn);
-  dict["wkv_forward_with_state"] = 
+  dict["rwkv_forward_with_state"] = 
       gpu_ops::EncapsulateFunction(gpu_ops::rwkv_forward_with_state_fn);
   return dict;
 }
