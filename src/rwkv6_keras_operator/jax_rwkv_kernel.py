@@ -106,7 +106,7 @@ class RWKVKernelOperator:
                 )
 
                 out = custom_call(
-                    b"wkv_forward",
+                    b"rwkv_forward",
                     result_types=[
                         ir.RankedTensorType.get(r_type.shape, output_type),
                     ],
@@ -209,7 +209,7 @@ class RWKVKernelOperator:
                 gu_shape = (bz,) +u_type.shape
                 
                 out = custom_call(
-                    b"wkv_backward",
+                    b"rwkv_backward",
                     result_types=[
                         ir.RankedTensorType.get(r_type.shape, output_type),#gr
                         ir.RankedTensorType.get(k_type.shape, output_type),#gk
@@ -385,7 +385,7 @@ class RWKVKernelOperator:
                     operand_layouts=default_layouts(r_type.shape,k_type.shape,v_type.shape,w_type.shape,u_type.shape)
                    
                 out = custom_call(
-                    b"wkv_forward_with_state",
+                    b"rwkv_forward_with_state",
                     result_types=[
                         ir.RankedTensorType.get(r_type.shape, output_type),
                         ir.RankedTensorType.get(state_shape, output_type)
