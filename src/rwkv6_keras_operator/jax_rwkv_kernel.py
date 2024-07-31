@@ -45,6 +45,7 @@ class RWKVKernelOperator:
         向mlir注册C++算子入口
         """
         for _name, _value in rwkv_kernel.get_rwkv_registrations().items():
+            print("register_custom_call_target", _name, _value)
             xla_client.register_custom_call_target(_name, _value, platform="gpu")
 
 
