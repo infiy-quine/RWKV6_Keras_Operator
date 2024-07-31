@@ -454,6 +454,8 @@ class RWKVKernelOperator:
         assert head_size >0 and max_sequence_length >0,"难绷，head_size与max_sequence_length肯定得是大于0的正整数啊。"
         assert os.path.exists(cuda_lib_dir) and len( os.listdir(cuda_lib_dir))>0,f"请检查{cuda_lib_dir}文件夹是否存在，这个文件本质是是您的cuda library的超链接。"
         kernel_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),kernel_dir_name))
+        if "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1":
+            kernel_dir += "_hip"
         builds_dir = os.path.join(kernel_dir,'builds')
         assert os.path.exists(kernel_dir),f"找不到{kernel_dir_name}文件夹，请问您的文件是完整的吗？"
         if not os.path.exists(builds_dir): os.mkdir(builds_dir)
