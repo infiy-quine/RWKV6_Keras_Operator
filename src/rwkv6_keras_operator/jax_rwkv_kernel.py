@@ -488,7 +488,7 @@ class RWKVKernelOperator:
             cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
             kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
                 f" -munsafe-fp-atomics -enable-vectorize-compares" +\
-                f" -I/" +\
+                f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
                 f" --gpu-max-threads-per-block=120" +\
                 f" -isystem /opt/rocm/include" +\
                 f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
@@ -512,6 +512,7 @@ class RWKVKernelOperator:
                 if USE_ROCM:
                     cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
                         f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
+                        f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
                         f" -isystem /opt/rocm/include" +\
                         f" -o {cpp_dst} -c {cpp_src}"
                 else:
@@ -529,6 +530,7 @@ class RWKVKernelOperator:
             #third assembly C++ and cuda
             if USE_ROCM:
                 assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
+                    f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
                     f" -L/opt/rocm/lib  -lamdhip64 -lpthread -ldl"
             else:
                 assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
