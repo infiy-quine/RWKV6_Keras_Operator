@@ -20,9 +20,15 @@ from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jaxlib.hlo_helpers import custom_call
 
 
-kernel_dir_name = 'jax_kernel'
-cuda_lib_dir = "/usr/local/cuda/include"
-kernel_name = "gpu_ops"
+USE_ROCM = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
+if USE_ROCM:
+    kernel_dir_name = "jax_kernel_hip"
+    cuda_lib_dir = "/opt/rocm/include"
+    kernel_name = "gpu_ops"
+else:
+    kernel_dir_name = "jax_kernel"
+    cuda_lib_dir = "/usr/local/cuda/include"
+    kernel_name = "gpu_ops"
 
 def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
@@ -448,15 +454,12 @@ class RWKVKernelOperator:
             return self.rwkv_normal_operator(r, k, v, w, u),None
     @staticmethod
     def _load_or_build_kernel(head_size,max_sequence_length):
-        USE_ROCM = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
         assert head_size % 4 ==0,f"head size必须是4的倍数，而{head_size}显然不是."
         assert isinstance(head_size, int),"你是在搞笑吗？ head_size肯定得是int类型的啊"
         assert isinstance(max_sequence_length, int),"你是在搞笑吗？ max_sequence_length肯定得是int类型的啊"
         assert head_size >0 and max_sequence_length >0,"难绷，head_size与max_sequence_length肯定得是大于0的正整数啊。"
         assert os.path.exists(cuda_lib_dir) and len( os.listdir(cuda_lib_dir))>0,f"请检查{cuda_lib_dir}文件夹是否存在，这个文件本质是是您的cuda library的超链接。"
         kernel_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),kernel_dir_name))
-        if USE_ROCM:
-            kernel_dir += "_hip"
         builds_dir = os.path.join(kernel_dir,'builds')
         assert os.path.exists(kernel_dir),f"找不到{kernel_dir_name}文件夹，请问您的文件是完整的吗？"
         if not os.path.exists(builds_dir): os.mkdir(builds_dir)
@@ -485,6 +488,7 @@ class RWKVKernelOperator:
             cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
             kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
                 f" -munsafe-fp-atomics -enable-vectorize-compares" +\
+                f" -I/" +\
                 f" --gpu-max-threads-per-block=120" +\
                 f" -isystem /opt/rocm/include" +\
                 f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
