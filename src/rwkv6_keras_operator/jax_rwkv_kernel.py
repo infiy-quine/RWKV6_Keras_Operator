@@ -485,6 +485,7 @@ class RWKVKernelOperator:
             kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
                 f" -munsafe-fp-atomics -enable-vectorize-compares" +\
                 f" --gpu-max-threads-per-block=120" +\
+                f" -isystem /opt/rocm/include" +\
                 f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
         else:
             cu_src = os.path.join(kernel_dir,"rwkv_kernels.cu")
