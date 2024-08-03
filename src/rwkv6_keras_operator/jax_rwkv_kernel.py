@@ -507,8 +507,8 @@ class RWKVKernelOperator:
         so_dst = os.path.join(target_dir,f"{kernel_name}{get_suffix()}")
         if not os.path.exists(so_dst):
             #second, build C++ code.
-            cpp_src = os.path.join(kernel_dir,"gpu_ops.cpp")
-            cpp_dst = os.path.join(builds_dir,"gpu_ops.cpp.o")
+            cpp_src = os.path.join(kernel_dir,f"{kernel_name}.cpp")
+            cpp_dst = os.path.join(builds_dir,f"{kernel_name}.cpp.o")
             if not os.path.exists(cpp_dst):
                 if use_rocm:
                     cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
