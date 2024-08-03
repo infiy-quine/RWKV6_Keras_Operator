@@ -4,13 +4,20 @@ from torch.utils.cpp_extension import load
 from keras import ops
 kernel_dir_name = 'torch_kernel'
 
+use_rocm = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
+
 class RWKVKernelOperator:
     def __init__(self,head_size,max_sequence_length):
         current_dir = os.path.dirname(__file__)
         #current_dir = os.pat
-        wkv6_cuda = load(name="wkv6", sources=[os.path.join(current_dir,f"{kernel_dir_name}/wkv6_op.cpp"), os.path.join(current_dir,f"{kernel_dir_name}/wkv6_cuda.cu")],
-                        #verbose=True, extra_cuda_cflags=[f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
-                        verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
+        if use_rocm:
+            wkv6_cuda = load(name="wkv6", sources=[os.path.join(current_dir,f"{kernel_dir_name}/wkv6_op.cpp"), os.path.join(current_dir,f"{kernel_dir_name}/wkv6_cuda.cu")],
+                            #verbose=True, extra_cuda_cflags=[f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
+                            verbose=True, extra_cuda_cflags=["-fopenmp -ffast-math -munsafe-fp-atomics --gpu-max-threads-per-block=120 -enable-vectorize-compares", f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
+        else:
+            wkv6_cuda = load(name="wkv6", sources=[os.path.join(current_dir,f"{kernel_dir_name}/wkv6_op.cpp"), os.path.join(current_dir,f"{kernel_dir_name}/wkv6_cuda.cu")],
+                            #verbose=True, extra_cuda_cflags=[f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
+                            verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={head_size}", f"-D_T_={max_sequence_length}"])
         class RWKV_6(torch.autograd.Function):
             @staticmethod
             def forward(ctx, B, T, C, H, r, k, v, w, u):

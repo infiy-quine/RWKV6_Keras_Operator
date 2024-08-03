@@ -24,12 +24,12 @@ use_rocm = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
 if use_rocm:
     kernel_dir_name = "jax_kernel_hip"
     cuda_lib_dir = "/opt/rocm/include"
-    kernel_name = "gpu_ops"
+    kernel_name = "hip_ops"
     platform = "ROCM"
 else:
-    kernel_dir_name = "jax_kernel"
+    kernel_dir_name = "jax_kernel_cuda"
     cuda_lib_dir = "/usr/local/cuda/include"
-    kernel_name = "gpu_ops"
+    kernel_name = "cuda_ops"
     platform = "gpu"
 
 def default_layouts(*shapes):
