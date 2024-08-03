@@ -20,9 +20,17 @@ from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jaxlib.hlo_helpers import custom_call
 
 
-kernel_dir_name = 'jax_kernel'
-cuda_lib_dir = "/usr/local/cuda/include"
-kernel_name = "gpu_ops"
+use_rocm = os.environ.get("RWKV_USE_ROCM", "0") == "1"
+if use_rocm:
+    kernel_dir_name = "jax_kernel_hip"
+    cuda_lib_dir = "/opt/rocm/include"
+    kernel_name = "gpu_ops"
+    platform = "ROCM"
+else:
+    kernel_dir_name = "jax_kernel_cuda"
+    cuda_lib_dir = "/usr/local/cuda/include"
+    kernel_name = "gpu_ops"
+    platform = "gpu"
 
 def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
@@ -39,7 +47,7 @@ class RWKVKernelOperator:
         向mlir注册C++算子入口
         """
         for _name, _value in rwkv_kernel.get_rwkv_registrations().items():
-            xla_client.register_custom_call_target(_name, _value, platform="gpu")
+            xla_client.register_custom_call_target(_name, _value, platform=platform)
 
 
         """
@@ -476,29 +484,52 @@ class RWKVKernelOperator:
         build_cmds = []
         
         #first, build cuda kernel
-        cu_src = os.path.join(kernel_dir,"rwkv_kernels.cu")
-        assert os.path.exists(cu_src)
-        cu_dst = os.path.join(target_dir,"rwkv_kernels.cu.o")
-        kernel_cmd = f"nvcc --threads 4 -Xcompiler -Wall -ldl --expt-relaxed-constexpr -O3 -DNDEBUG -Xcompiler -O3"+\
-            f" --generate-code=arch=compute_70,code=[compute_70,sm_70] --generate-code=arch=compute_75,code=[compute_75,sm_75] --generate-code=arch=compute_80,code=[compute_80,sm_80] --generate-code=arch=compute_86,code=[compute_86,sm_86]"+\
-            f" -Xcompiler=-fPIC -Xcompiler=-fvisibility=hidden -x cu -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
+        if use_rocm:
+            cu_src = os.path.join(kernel_dir,"rwkv_kernels.hip")
+            assert os.path.exists(cu_src)
+            cu_dst = os.path.join(target_dir,"rwkv_kernels.hip.o")
+            kernel_cmd = f"hipcc -O3 --hipstdpar -xhip -fopenmp -ffast-math" +\
+                f" -munsafe-fp-atomics -enable-vectorize-compares" +\
+                f" -I{cuda_lib_dir} -I{pybind11.get_include()}" +\
+                f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
+                f" --gpu-max-threads-per-block=120" +\
+                f" -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
+        else:
+            cu_src = os.path.join(kernel_dir,"rwkv_kernels.cu")
+            assert os.path.exists(cu_src)
+            cu_dst = os.path.join(target_dir,"rwkv_kernels.cu.o")
+            kernel_cmd = f"nvcc --threads 4 -Xcompiler -Wall -ldl --expt-relaxed-constexpr -O3 -DNDEBUG -Xcompiler -O3"+\
+                f" --generate-code=arch=compute_70,code=[compute_70,sm_70] --generate-code=arch=compute_75,code=[compute_75,sm_75] --generate-code=arch=compute_80,code=[compute_80,sm_80] --generate-code=arch=compute_86,code=[compute_86,sm_86]"+\
+                f" -Xcompiler=-fPIC -Xcompiler=-fvisibility=hidden -x cu -c {cu_src} -o {cu_dst} -D _N_={head_size} -D _T_={max_sequence_length}"
         build_cmds.append(kernel_cmd)
 
         
         so_dst = os.path.join(target_dir,f"{kernel_name}{get_suffix()}")
         if not os.path.exists(so_dst):
             #second, build C++ code.
-            cpp_src = os.path.join(kernel_dir,"gpu_ops.cpp")
-            cpp_dst = os.path.join(builds_dir,"gpu_ops.cpp.o")
+            cpp_src = os.path.join(kernel_dir,f"{kernel_name}.cpp")
+            cpp_dst = os.path.join(builds_dir,f"{kernel_name}.cpp.o")
             if not os.path.exists(cpp_dst):
-                cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
-                    f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
-                    f" -o {cpp_dst} -c {cpp_src}"
+                if use_rocm:
+                    cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                        f" -fPIC -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
+                        f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
+                        f" -o {cpp_dst} -c {cpp_src}"
+                else:
+                    cpp_cmd = f"c++ -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                        f" -O3 -DNDEBUG -O3 -fPIC -fvisibility=hidden -flto -fno-fat-lto-objects"+\
+                        f" -o {cpp_dst} -c {cpp_src}"
                 build_cmds.append(cpp_cmd)
 
             #third assembly C++ and cuda
-            assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
-                f" -L/usr/local/cuda/lib64  -lcudadevrt -lcudart_static -lrt -lpthread -ldl"
+            if use_rocm:
+                assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
+                    f" -fPIC -I{cuda_lib_dir} -I{pybind11.get_include()} {get_cflags()}"+\
+                    f" -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2" +\
+                    f" -L/opt/rocm/lib  -lamdhip64 -lpthread -ldl"
+            else:
+                assembly_cmd = f"c++ -fPIC -O3 -DNDEBUG -O3 -flto -shared  -o {so_dst} {cpp_dst} {cu_dst}"+\
+                    f" -L/usr/local/cuda/lib64  -lcudadevrt -lcudart_static -lrt -lpthread -ldl"
             build_cmds.append(assembly_cmd)
 
             #finally strip the so library
