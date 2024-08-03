@@ -20,7 +20,7 @@ from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from jaxlib.hlo_helpers import custom_call
 
 
-use_rocm = "RWKV_USE_ROCM" in os.environ and os.environ["RWKV_USE_ROCM"] == "1"
+use_rocm = os.environ.get("RWKV_USE_ROCM", "0") == "1"
 if use_rocm:
     kernel_dir_name = "jax_kernel_hip"
     cuda_lib_dir = "/opt/rocm/include"
